@@ -2920,13 +2920,16 @@ route();
     const bd = document.getElementById('chrCaptchaBackdrop');
     if(bd) bd.classList.add('hidden');
   }
+  function openMailto(){
+    const u = String.fromCharCode(115,117,112,112,111,114,116);
+    const d = ['chrsolution','app'].join('.');
+    window.open('mailto:' + u + '@' + d + '?subject=' + encodeURIComponent('[CHR Solution] Demande de support'), '_self');
+  }
   function verify(){
     const val = parseInt(document.getElementById('chrCaptchaInput').value, 10);
     if(val === a + b){
       close();
-      const u = String.fromCharCode(115,117,112,112,111,114,116);
-      const d = ['chrsolution','app'].join('.');
-      window.open('mailto:' + u + '@' + d + '?subject=' + encodeURIComponent('[CHR Solution] Demande de support'), '_self');
+      openMailto();
     } else {
       document.getElementById('chrCaptchaError').textContent = t('captchaError');
       const input = document.getElementById('chrCaptchaInput');
@@ -2936,6 +2939,11 @@ route();
   }
   window.chrOpenSupport = function(e){
     if(e && e.preventDefault) e.preventDefault();
+    // En iframe Bubble : user déjà authentifié, on skip le captcha
+    if(document.body.classList.contains('embedded')){
+      openMailto();
+      return;
+    }
     open();
   };
 })();
