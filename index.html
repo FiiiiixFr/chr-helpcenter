@@ -278,6 +278,18 @@
     .hero.compact{padding:10px 16px}
     .article{padding:22px 16px}
   }
+
+  /* Captcha modal — anti-spam léger avant ouverture mailto */
+  .captcha-backdrop{position:fixed;inset:0;background:rgba(44,32,25,.55);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px}
+  .captcha-backdrop.hidden{display:none}
+  .captcha-modal{background:var(--sand);border:1px solid #E5C76B;border-radius:var(--radius);padding:24px 28px;max-width:400px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25);font-family:inherit}
+  .captcha-modal h3{margin:0 0 6px;color:var(--navy);font-size:1.1rem}
+  .captcha-modal .hint{margin:0 0 14px;color:var(--muted);font-size:.9rem}
+  .captcha-question{font-size:1.4rem;font-weight:600;color:var(--navy);text-align:center;padding:14px;background:#FBF5E7;border-radius:8px;margin-bottom:12px;user-select:none}
+  .captcha-input{width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #ccc;border-radius:8px;font-size:1rem;margin-bottom:12px;font-family:inherit}
+  .captcha-input:focus{outline:none;border-color:var(--gold-dark)}
+  .captcha-actions{display:flex;gap:10px;justify-content:flex-end}
+  .captcha-error{color:#c53030;font-size:.85rem;margin:0 0 10px;min-height:1.2em}
 </style>
 
 <!-- SVG icons library -->
@@ -344,6 +356,11 @@ const I18N = {
     ctaCatTitle:"Besoin d'aller plus loin ?",
     ctaCatText:"On est à votre écoute.",
     ctaBtn:"Contacter le support",
+    captchaTitle:"Petit contrôle anti-spam",
+    captchaHint:"Résolvez ce calcul pour ouvrir votre client mail.",
+    captchaSubmit:"Envoyer",
+    captchaCancel:"Annuler",
+    captchaError:"Mauvaise réponse, réessayez.",
     adminBadge:"Admin",
     soonBadge:"Bientôt",
     noArticles:"Aucun article pour le moment.",
@@ -367,6 +384,11 @@ const I18N = {
     ctaCatTitle:"Need to go further?",
     ctaCatText:"We're here for you.",
     ctaBtn:"Contact support",
+    captchaTitle:"Quick anti-spam check",
+    captchaHint:"Solve this to open your email client.",
+    captchaSubmit:"Send",
+    captchaCancel:"Cancel",
+    captchaError:"Wrong answer, please try again.",
     adminBadge:"Admin",
     soonBadge:"Soon",
     noArticles:"No articles yet.",
@@ -2671,7 +2693,7 @@ function renderHome(){
         <h3>${t('ctaHomeTitle')}</h3>
         <p>${t('ctaHomeText')}</p>
       </div>
-      <a class="btn" href="mailto:support@chrsolution.app">${t('ctaBtn')}</a>
+      <a class="btn" href="#" onclick="chrOpenSupport(event)">${t('ctaBtn')}</a>
     </div>`;
   window.scrollTo({top:0,behavior:'instant'});
 }
@@ -2705,7 +2727,7 @@ function renderCategory(catId){
         <h3>${t('ctaCatTitle')}</h3>
         <p>${t('ctaCatText')}</p>
       </div>
-      <a class="btn outline" href="mailto:support@chrsolution.app">${t('ctaBtn')}</a>
+      <a class="btn outline" href="#" onclick="chrOpenSupport(event)">${t('ctaBtn')}</a>
     </div>`;
   window.scrollTo({top:0,behavior:'instant'});
 }
@@ -2846,6 +2868,77 @@ try {
 renderLangSwitcher();
 renderHeroStatic();
 route();
+
+/* ============================================================
+   Captcha anti-spam pour le bouton "Contacter le support"
+   L'email n'est jamais dans le HTML statique (obfuscation scrapers)
+   + petit calcul à résoudre avant d'ouvrir mailto:.
+   ============================================================ */
+(function(){
+  let a=0, b=0;
+  function mount(){
+    if(document.getElementById('chrCaptchaBackdrop')) return;
+    const html = '<div class="captcha-backdrop hidden" id="chrCaptchaBackdrop" role="dialog" aria-modal="true" aria-labelledby="chrCaptchaTitle">' +
+      '<div class="captcha-modal">' +
+        '<h3 id="chrCaptchaTitle"></h3>' +
+        '<p class="hint" id="chrCaptchaHint"></p>' +
+        '<div class="captcha-question" id="chrCaptchaQuestion"></div>' +
+        '<input type="number" inputmode="numeric" class="captcha-input" id="chrCaptchaInput" aria-label="Answer" autocomplete="off">' +
+        '<p class="captcha-error" id="chrCaptchaError"></p>' +
+        '<div class="captcha-actions">' +
+          '<button class="btn outline" type="button" id="chrCaptchaCancel"></button>' +
+          '<button class="btn" type="button" id="chrCaptchaSubmit"></button>' +
+        '</div>' +
+      '</div></div>';
+    document.body.insertAdjacentHTML('beforeend', html);
+    document.getElementById('chrCaptchaCancel').addEventListener('click', close);
+    document.getElementById('chrCaptchaSubmit').addEventListener('click', verify);
+    document.getElementById('chrCaptchaInput').addEventListener('keydown', e => {
+      if(e.key === 'Enter'){ e.preventDefault(); verify(); }
+      if(e.key === 'Escape'){ close(); }
+    });
+    document.getElementById('chrCaptchaBackdrop').addEventListener('click', e => {
+      if(e.target.id === 'chrCaptchaBackdrop') close();
+    });
+  }
+  function open(){
+    mount();
+    a = Math.floor(Math.random()*8)+2;
+    b = Math.floor(Math.random()*8)+2;
+    document.getElementById('chrCaptchaTitle').textContent = t('captchaTitle');
+    document.getElementById('chrCaptchaHint').textContent = t('captchaHint');
+    document.getElementById('chrCaptchaQuestion').textContent = a + ' + ' + b + ' = ?';
+    document.getElementById('chrCaptchaSubmit').textContent = t('captchaSubmit');
+    document.getElementById('chrCaptchaCancel').textContent = t('captchaCancel');
+    document.getElementById('chrCaptchaError').textContent = '';
+    const input = document.getElementById('chrCaptchaInput');
+    input.value = '';
+    document.getElementById('chrCaptchaBackdrop').classList.remove('hidden');
+    setTimeout(function(){ input.focus(); }, 50);
+  }
+  function close(){
+    const bd = document.getElementById('chrCaptchaBackdrop');
+    if(bd) bd.classList.add('hidden');
+  }
+  function verify(){
+    const val = parseInt(document.getElementById('chrCaptchaInput').value, 10);
+    if(val === a + b){
+      close();
+      const u = String.fromCharCode(115,117,112,112,111,114,116);
+      const d = ['chrsolution','app'].join('.');
+      window.open('mailto:' + u + '@' + d + '?subject=' + encodeURIComponent('[CHR Solution] Demande de support'), '_self');
+    } else {
+      document.getElementById('chrCaptchaError').textContent = t('captchaError');
+      const input = document.getElementById('chrCaptchaInput');
+      input.value = '';
+      input.focus();
+    }
+  }
+  window.chrOpenSupport = function(e){
+    if(e && e.preventDefault) e.preventDefault();
+    open();
+  };
+})();
 </script>
 </body>
 </html>
