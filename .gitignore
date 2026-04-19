@@ -1,3 +1,12 @@
 .DS_Store
 *.swp
 .vscode/
+
+# Jamais commit les fichiers de mémoire/credentials même s'ils finissent ici par erreur
+MEMOIRE.md
+.ovh-env
+*.pat
+*_token*
+.env
+.env.*
+!.env.example
